@@ -1,86 +1,83 @@
-[ORG 0x7c00]      ; add to offsets
-   xor ax, ax    ; make it zero
-   mov ds, ax   ; DS=0
-   mov ss, ax   ; stack starts at 0
-   mov sp, 0x9c00   ; 2000h past code start
+; boot.asm - Bootloader with string printing
+[BITS 16]
+[ORG 0x7C00]
 
-   cld
+start:
+    ; Set up segment registers
+    xor ax, ax      ; AX = 0
+    mov ds, ax      ; Data Segment = 0
+    mov es, ax      ; Extra Segment = 0
+    ; Print our boot message
+    mov si, boot_msg    ; SI points to our string
+    call print_string
+    cli
+    lgdt [gdt_descriptor] ; load our GDT
+    mov eax, cr0
+    or eax, 1
+    mov cr0, eax
+    jmp CODE_SEG:protected_mode_start
 
-   mov ax, 0xb800   ; text video memory
-   mov es, ax
+; ----------------------------------------
+; print_string: Prints a null-terminated string
+; Input: SI = pointer to string
+; ----------------------------------------
+print_string:
+    mov ah, 0x0E        ; BIOS teletype function
+.loop:
+    lodsb               ; Load byte at [SI] into AL, increment SI
+    cmp al, 0           ; Is it null terminator?
+    je .done            ; If yes, we're done
+    int 0x10            ; Print character in AL
+    jmp .loop           ; Next character
+.done:
+    ret
 
-   mov si, msg   ; show text string
-   call sprint
+[BITS 32]
+protected_mode_start:
+    mov ax, DATA_SEG
+    mov ds, ax
+    mov es, ax
+    mov fs, ax
+    mov gs, ax
+    mov ss, ax
+    hlt
 
-   mov ax, 0xb800   ; look at video mem
-   mov gs, ax
-   mov bx, 0x0000   ; 'W'=57 attrib=0F
-   mov ax, [gs:bx]
+; ----------------------------------------
+; Data
+; ----------------------------------------
+boot_msg: db "Booting innocenceOS...", 0
 
-   mov  word [reg16], ax ;look at register
-   call printreg16
+; GDT
+gdt_start:
 
-hang:
-   jmp hang
+gdt_null:
+    dq 0
 
-;----------------------
-dochar:   call cprint         ; print one character
-sprint:   lodsb      ; string char to AL
-   cmp al, 0
-   jne dochar   ; else, we're done
-   add byte [ypos], 1   ;down one row
-   mov byte [xpos], 0   ;back to left
-   ret
+gdt_code:
+    dw 0xFFFF       ; Limit bits 0-15 (how big the segment is)
+    dw 0            ; Base bits 0-15 (where segment starts)
+    db 0            ; Base bits 16-23
+    db 10011010b    ; Access byte
+    db 11001111b    ; Flags (4 bits) + Limit bits 16-19 (4 bits)
+    db 0            ; Base bits 24-31
 
-cprint:   mov ah, 0x0F   ; attrib = white on black
-   mov cx, ax    ; save char/attribute
-   movzx ax, byte [ypos]
-   mov dx, 160   ; 2 bytes (char/attrib)
-   mul dx      ; for 80 columns
-   movzx bx, byte [xpos]
-   shl bx, 1    ; times 2 to skip attrib
+gdt_data:
+    dw 0xFFFF       ; Limit bits 0-15
+    dw 0            ; Base bits 0-15
+    db 0            ; Base bits 16-23
+    db 10010010b    ; Access byte (different!)
+    db 11001111b    ; Flags + Limit bits 16-19
+    db 0            ; Base bits 24-31
 
-   mov di, 0        ; start of video memory
-   add di, ax      ; add y offset
-   add di, bx      ; add x offset
+gdt_end:
 
-   mov ax, cx        ; restore char/attribute
-   stosw              ; write char/attribute
-   add byte [xpos], 1  ; advance to right
+gdt_descriptor:
+    dw gdt_end - gdt_start - 1  ; Size of GDT minus 1 (in bytes) always minus 1
+    dd gdt_start                ; Address of GDT
 
-   ret
+CODE_SEG equ gdt_code - gdt_start
+DATA_SEG equ gdt_data - gdt_start
 
-;------------------------------------
-
-printreg16:
-   mov di, outstr16
-   mov ax, [reg16]
-   mov si, hexstr
-   mov cx, 4   ;four places
-hexloop:
-   rol ax, 4   ;leftmost will
-   mov bx, ax   ; become
-   and bx, 0x0f   ; rightmost
-   mov bl, [si + bx];index into hexstr
-   mov [di], bl
-   inc di
-   dec cx
-   jnz hexloop
-
-   mov si, outstr16
-   call sprint
-
-   ret
-
-;------------------------------------
-
-xpos   db 0
-ypos   db 0
-hexstr   db '0123456789ABCDEF'
-outstr16   db '0000', 0  ;register value string
-reg16   dw    0  ; pass values to printreg16
-msg   db "What are you doing, Dave?", 0
+; Padding and magic number
 times 510-($-$$) db 0
-db 0x55
-db 0xAA
-;==================================
+dw 0xAA55
