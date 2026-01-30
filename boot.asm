@@ -8,7 +8,7 @@ start:
     mov ds, ax      ; Data Segment = 0
     mov es, ax      ; Extra Segment = 0
     ; Print our boot message
-    mov si, boot_msg    ; SI points to our string
+    mov si, real_mode_msg    ; SI points to our string
     call print_string
     cli
     lgdt [gdt_descriptor] ; load our GDT
@@ -40,12 +40,55 @@ protected_mode_start:
     mov fs, ax
     mov gs, ax
     mov ss, ax
+    call protected_print
     hlt
+
+protected_print:
+    ; clear the screen
+    mov edi, 0xB8000
+    mov ecx, 2000
+    mov eax, " "
+    rep stosw
+
+    ; print message
+    mov eax, 0
+
+print_loop:
+    mov edi, 0xB8000
+
+    push eax
+
+    ; temporarily use ebx for eax*2
+    mov ebx, eax
+    mov eax, 2
+    mul ebx
+
+    add edi, eax ;eax now wrong
+    mov ebx, edi
+    add ebx, 1
+
+    pop eax
+
+    mov edx, protected_mode_msg
+    add edx, eax
+
+    mov cl, [edx]
+    cmp cl, 0
+
+    jne print_char
+    ret
+
+print_char:
+    mov byte [edi], cl
+    mov byte [ebx], 0x0F
+    inc eax
+    jmp print_loop
 
 ; ----------------------------------------
 ; Data
 ; ----------------------------------------
-boot_msg: db "Booting innocenceOS...", 0
+real_mode_msg: db "In real mode...", 0
+protected_mode_msg: db "Welcome to protected mode :)", 0
 
 ; GDT
 gdt_start:
