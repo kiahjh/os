@@ -4,9 +4,21 @@
 
 start:
     ; Set up segment registers
-    xor ax, ax      ; AX = 0
-    mov ds, ax      ; Data Segment = 0
-    mov es, ax      ; Extra Segment = 0
+    xor ax, ax          ; AX = 0
+    mov ds, ax          ; Data Segment = 0
+    mov es, ax          ; Extra Segment = 0
+
+    ; Load kernel from disk
+    mov ah, 0x02        ; BIOS read sectors function
+    mov al, 4           ; Number of sectors to read (4 x 512 = 2KB)
+    mov ch, 0           ; Cylinder 0
+    mov cl, 2           ; Start from sector 2 (sector 1 is our bootloader)
+    mov dh, 0           ; Head 0
+    mov dl, 0x80        ; First hard drive
+    mov bx, 0x8000      ; Destination address (ES:BX)
+    int 0x13            ; Call BIOS
+    jc disk_error       ; Jump if carry flag set (error)
+
     cli
     lgdt [gdt_descriptor] ; load our GDT
     mov eax, cr0
@@ -92,6 +104,13 @@ no_cpuid:
 no_long_mode:
     hlt
 
+disk_error:
+    ; Print 'E' and the error code in AH
+    mov ah, 0x0E
+    mov al, 'E'
+    int 0x10
+    hlt
+
 ; ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 ; =======================================
@@ -107,12 +126,10 @@ long_mode_start:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    ; We made it! Print something to prove it.
-    mov rax, 0x0F640F6F0F4D0F21  ; "!Mo d" with attributes (reversed)
-    mov qword [0xB8000], rax
-    mov rax, 0x0F340F360F200F65  ; "e 64" with attributes
-    mov qword [0xB8008], rax
-    hlt
+
+    ; Jump to the kernel
+    mov rax, 0x8000
+    jmp rax
 
 ; ----------------------------------------
 ;                  Data

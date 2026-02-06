@@ -1,0 +1,9 @@
+[build]
+target = "x86_64-kernel.json"
+
+[target.x86_64-kernel]
+rustflags = ["-C", "link-arg=-Tlinker.ld"]
+
+[unstable]
+build-std = ["core"]
+build-std-features = ["compiler-builtins-mem"]
