@@ -7,30 +7,12 @@ start:
     xor ax, ax      ; AX = 0
     mov ds, ax      ; Data Segment = 0
     mov es, ax      ; Extra Segment = 0
-    ; Print our boot message
-    mov si, real_mode_msg    ; SI points to our string
-    call print_string
     cli
     lgdt [gdt_descriptor] ; load our GDT
     mov eax, cr0
     or eax, 1
     mov cr0, eax
     jmp CODE_SEG:protected_mode_start
-
-; ----------------------------------------
-; print_string: Prints a null-terminated string
-; Input: SI = pointer to string
-; ----------------------------------------
-print_string:
-    mov ah, 0x0E        ; BIOS teletype function
-.loop:
-    lodsb               ; Load byte at [SI] into AL, increment SI
-    cmp al, 0           ; Is it null terminator?
-    je .done            ; If yes, we're done
-    int 0x10            ; Print character in AL
-    jmp .loop           ; Next character
-.done:
-    ret
 
 [BITS 32]
 protected_mode_start:
@@ -40,50 +22,7 @@ protected_mode_start:
     mov fs, ax
     mov gs, ax
     mov ss, ax
-    mov esi, protected_success
-    call protected_print_msg
     jmp check_cpuid
-
-protected_print_msg:
-    ; clear the screen
-    mov edi, 0xB8000
-    mov ecx, 2000
-    mov eax, " "
-    rep stosw
-
-    ; print message
-    mov eax, 0
-
-print_loop:
-    mov edi, 0xB8000
-
-    push eax
-
-    ; temporarily use ebx for eax*2
-    mov ebx, eax
-    mov eax, 2
-    mul ebx
-
-    add edi, eax ;eax now wrong
-    mov ebx, edi
-    add ebx, 1
-
-    pop eax
-
-    mov edx, esi
-    add edx, eax
-
-    mov cl, [edx]
-    cmp cl, 0
-
-    jne print_char
-    ret
-
-print_char:
-    mov byte [edi], cl
-    mov byte [ebx], 0x0F
-    inc eax
-    jmp print_loop
 
 check_cpuid:
     pushfd                  ; Push FLAGS onto stack
@@ -111,8 +50,6 @@ check_long_mode:
     test edx, 1 << 29       ; Bit 29 = Long Mode (LM) bit
     jz no_long_mode         ; If zero, no Long Mode
     ; If we get here, Long Mode is supported!
-    mov esi, long_mode_ok_msg
-    call protected_print_msg
 
 setup_paging:
     ; Clear 3 pages (4096 * 3 = 12288 bytes) starting at 0x1000
@@ -150,13 +87,9 @@ setup_paging:
 ; vvvvvvvvvvv error handlers vvvvvvvvvvvv
 
 no_cpuid:
-    mov esi, no_cpuid_msg
-    call protected_print_msg
     hlt
 
 no_long_mode:
-    mov esi, no_long_mode_msg
-    call protected_print_msg
     hlt
 
 ; ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -181,15 +114,9 @@ long_mode_start:
     mov qword [0xB8008], rax
     hlt
 
-
 ; ----------------------------------------
 ;                  Data
 ; ----------------------------------------
-real_mode_msg: db "In real mode...", 0
-protected_success: db "Welcome to protected mode :)", 0
-no_cpuid_msg: db "Error: CPUID not supported", 0
-no_long_mode_msg: db "Error: Long Mode not supported", 0
-long_mode_ok_msg: db "Long Mode supported!", 0
 
 ; GDT
 gdt_start:
