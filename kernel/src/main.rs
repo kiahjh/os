@@ -3,14 +3,20 @@
 
 use core::panic::PanicInfo;
 
+use crate::vga::{BgColor, Char, ColorCode, FgColor, Vga};
+
+mod vga;
+
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
-    let vga_buffer = 0xB8000 as *mut u8;
-
-    unsafe {
-        *vga_buffer = b'I';
-        *vga_buffer.offset(1) = 0x0F;
-    }
+    Vga::print_char(Char {
+        ascii_character: b'M',
+        color_code: ColorCode {
+            fg: FgColor::Cyan,
+            bg: BgColor::Brown,
+            blink: false,
+        },
+    });
 
     loop {}
 }
