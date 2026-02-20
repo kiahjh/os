@@ -1,19 +1,83 @@
-pub struct Vga;
+const VGA_START: u32 = 0xB8000;
+
+pub struct Vga {
+    line: u8,   // 0 - 24
+    column: u8, // 0 - 79
+}
 
 impl Vga {
-    pub fn print_char(char: Char) {
-        let vga_buffer = 0xB8000 as *mut u8;
+    pub fn new() -> Self {
+        let mut new_vga = Vga { line: 0, column: 0 };
+        new_vga.clear_all();
+        new_vga
+    }
+
+    pub fn clear_all(&mut self) {
+        for _ in 0..(80 * 25) {
+            self.print_char(b' ');
+        }
+        self.line = 0;
+        self.column = 0;
+    }
+
+    pub fn get_cursor_addr(&self) -> *mut u8 {
+        let offset_index = (self.line * 80 + self.column) as u32;
+        (VGA_START + offset_index * 2) as *mut u8
+    }
+
+    pub fn shift_cursor(&mut self) {
+        if self.column == 79 {
+            self.newline();
+        } else {
+            self.column += 1;
+        }
+    }
+
+    pub fn newline(&mut self) {
+        self.line += 1;
+        self.column = 0;
+    }
+
+    pub fn print_char(&mut self, char: u8) {
+        let char = Char::new(
+            char,
+            ColorCode {
+                fg: FgColor::White,
+                bg: BgColor::Black,
+                blink: false,
+            },
+        );
+
+        let cursor_addr = self.get_cursor_addr();
 
         unsafe {
-            *vga_buffer = char.ascii_character;
-            *vga_buffer.offset(1) = char.color_code.to_byte();
+            *cursor_addr = char.ascii_character;
+            *cursor_addr.offset(1) = char.color_code.to_byte();
+        };
+
+        self.shift_cursor();
+    }
+
+    pub fn println(&mut self, text: &str) {
+        for char in text.bytes() {
+            self.print_char(char);
         }
+        self.newline();
     }
 }
 
 pub struct Char {
     pub ascii_character: u8,
     pub color_code: ColorCode,
+}
+
+impl Char {
+    pub fn new(ascii_character: u8, color_code: ColorCode) -> Self {
+        Char {
+            ascii_character,
+            color_code,
+        }
+    }
 }
 
 // note: this could be denser, stored in a single byte

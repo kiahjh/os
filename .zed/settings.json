@@ -1,0 +1,20 @@
+{
+  "lsp": {
+    "rust-analyzer": {
+      "initialization_options": {
+        "linkedProjects": ["kernel/Cargo.toml"],
+        "cargo": {
+          "buildScripts": {
+            "enable": true
+          },
+          "sysroot": "discover",
+          "extraArgs": ["-Zbuild-std=core"],
+          "test": false
+        },
+        "check": {
+          "extraArgs": ["-Zbuild-std=core"]
+        }
+      }
+    }
+  }
+}
