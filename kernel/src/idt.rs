@@ -67,8 +67,19 @@ pub fn load_idt() {
 
 #[unsafe(no_mangle)]
 extern "C" fn keyboard_handler() {
+    let scancode = pic::inb(0x60);
     let mut vga = Vga::new();
-    vga.println("keyboard pressed");
+
+    unsafe {
+        let high = scancode >> 4;
+        let low = scancode & 0xF;
+        let to_hex = |n: u8| -> u8 { if n < 10 { b'0' + n } else { b'A' + n - 10 } };
+        vga.print_char(b'0');
+        vga.print_char(b'x');
+        vga.print_char(to_hex(high));
+        vga.print_char(to_hex(low));
+        vga.newline();
+    }
 
     pic::send_eoi();
 }

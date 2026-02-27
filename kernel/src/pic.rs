@@ -13,7 +13,7 @@ fn outb(port: u16, value: u8) {
 }
 
 /// Read a byte from an x86 I/O port
-fn inb(port: u16) -> u8 {
+pub fn inb(port: u16) -> u8 {
     let value: u8;
     unsafe {
         asm!("in al, dx", in("dx") port, out("al") value);
