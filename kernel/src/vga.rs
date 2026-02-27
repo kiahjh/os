@@ -21,7 +21,7 @@ impl Vga {
     }
 
     pub fn get_cursor_addr(&self) -> *mut u8 {
-        let offset_index = (self.line * 80 + self.column) as u32;
+        let offset_index = (self.line as u32) * 80 + (self.column as u32);
         (VGA_START + offset_index * 2) as *mut u8
     }
 

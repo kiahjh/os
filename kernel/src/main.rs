@@ -1,22 +1,25 @@
 #![no_std]
 #![no_main]
-
-use core::panic::PanicInfo;
+#![allow(unused)]
 
 use crate::vga::Vga;
+use core::panic::PanicInfo;
 
+mod idt;
+mod pic;
 mod vga;
 
 #[unsafe(no_mangle)]
 pub extern "C" fn _start() -> ! {
+    idt::load_idt();
+    pic::remap();
+    pic::unmask_keyboard();
+
+    // enable interrupts
+    unsafe { core::arch::asm!("sti") }
+
     let mut vga = Vga::new();
-    vga.println("Hello, Kiah!");
-    vga.println("Hello, Luke!");
-    vga.println("Hello, Kara!");
-    vga.println("Hello, Ellie!");
-    vga.println("Hello, Jenna!");
-    vga.println("Hello, Luke!");
-    vga.println("Hello, Luke!");
+    vga.println("> $ ");
 
     loop {}
 }
